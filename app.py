@@ -20,11 +20,9 @@ if "spike_logs" not in st.session_state:
   st.session_state.spike_logs = []
 
 st.sidebar.header("🔑 Dhan API Credentials")
-# कुछ वर्जनों में केवल access_token या client_id दोनों की जरूरत होती है
+# यहाँ Client ID और Access Token दोनों लिए जा रहे हैं जैसा कि पहले काम कर रहा था
+client_id = st.sidebar.text_input("Dhan Client ID", type="password")
 access_token = st.sidebar.text_input("Dhan Access Token", type="password")
-client_id = st.sidebar.text_input(
-    "Dhan Client ID (Optional for some versions)", type="password"
-)
 symbol = st.sidebar.selectbox("Select Index", ["NIFTY", "SENSEX"])
 refresh_sec = st.sidebar.slider("Auto-Refresh Interval (Sec)", 1, 5, 2)
 
@@ -34,22 +32,10 @@ INDEX_CONFIG = {
 }
 
 
-def get_dhan_client(access_token, client_id):
-  """विभिन्न dhanhq वर्जनों के हिसाब से सेफ इनिशियलाइज़ेशन"""
+def fetch_live_option_chain_data(client_id, access_token, index_name):
   try:
-    # पहले केवल access_token से कोशिश करें
-    return dhanhq(access_token)
-  except Exception:
-    try:
-      # यदि client_id और access_token दोनों की जरूरत हो
-      return dhanhq(client_id, access_token)
-    except Exception as e:
-      raise RuntimeError(f"Dhan Client Init Error: {e}")
-
-
-def fetch_live_option_chain_data(access_token, client_id, index_name):
-  try:
-    dhan = get_dhan_client(access_token, client_id)
+    # आधिकारिक नियम के मुताबिक client_id और access_token दोनों पास किए जा रहे हैं
+    dhan = dhanhq(client_id, access_token)
     config = INDEX_CONFIG[index_name]
 
     exp_response = dhan.expiry_list(
@@ -153,9 +139,9 @@ def compute_tv_imbalance_live(spot_price, oc_data, index_name):
   )
 
 
-if access_token:
+if client_id and access_token:
   spot_price, oc_data, err_msg = fetch_live_option_chain_data(
-      access_token, client_id, symbol
+      client_id, access_token, symbol
   )
 
   if err_msg:
@@ -245,7 +231,7 @@ if access_token:
           " मॉनिटर कर रही है।"
       )
 else:
-  st.info("👈 कृपया साइडबार में अपना Dhan Access Token दर्ज करें।")
+  st.info("👈 कृपया साइडबार में अपने सही Dhan Client ID और Access Token दर्ज करें।")
 
 time.sleep(refresh_sec)
 st.rerun()
