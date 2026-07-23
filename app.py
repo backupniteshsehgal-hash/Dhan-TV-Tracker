@@ -5,15 +5,17 @@ import requests
 import streamlit as st
 
 st.set_page_config(
-    page_title="3 PM TV Imbalance Tracker", page_icon="⚡", layout="wide"
+    page_title="Multi-Index TV Imbalance Tracker",
+    page_icon="⚡",
+    layout="wide",
 )
 
-st.title("⚡ 3 PM Option Time Value (TV) Tracker")
+st.title("⚡ Option Time Value (TV) Tracker - SENSEX & NIFTY")
 st.caption(
-    "ATM ± 10 Strikes | Real-time Extrinsic Value Comparison with Auto-Logging"
+    "ATM ± 10 Strikes | Real-time Extrinsic Value Comparison with"
+    " Multi-Index Auto-Logging"
 )
 
-# Initialize session state for logging spikes
 if "spike_logs" not in st.session_state:
   st.session_state.spike_logs = []
 
@@ -98,79 +100,153 @@ if client_id and access_token:
         "https://api.dhan.co/v2/fund", headers=headers, timeout=5
     )
 
-    spot_price = 76269.56
+    if symbol == "SENSEX":
+      spot_price = 76269.56
+      raw_chain_data = {
+          "Strike": [
+              75200,
+              75300,
+              75400,
+              75500,
+              75600,
+              75700,
+              75800,
+              75900,
+              76000,
+              76100,
+              76200,
+              76300,
+              76400,
+              76500,
+              76600,
+              76700,
+              76800,
+              76900,
+              77000,
+              77100,
+              77200,
+          ],
+          "Call_LTP": [
+              1070,
+              970,
+              870,
+              770,
+              670,
+              570,
+              470,
+              371.85,
+              271.70,
+              177.45,
+              89.10,
+              30.25,
+              8.45,
+              2.95,
+              1.70,
+              0.90,
+              0.50,
+              0.30,
+              0.20,
+              0.10,
+              0.05,
+          ],
+          "Put_LTP": [
+              0.05,
+              0.10,
+              0.20,
+              0.30,
+              0.50,
+              0.90,
+              1.20,
+              1.80,
+              2.75,
+              6.00,
+              19.90,
+              62.65,
+              140.80,
+              234.90,
+              333.75,
+              430.00,
+              530.00,
+              630.00,
+              730.00,
+              830.00,
+              930.00,
+          ],
+      }
+    else:
+      spot_price = 23550.25
+      raw_chain_data = {
+          "Strike": [
+              23050,
+              23100,
+              23150,
+              23200,
+              23250,
+              23300,
+              23350,
+              23400,
+              23450,
+              23500,
+              23550,
+              23600,
+              23650,
+              23700,
+              23750,
+              23800,
+              23850,
+              23900,
+              23950,
+              24000,
+              24050,
+          ],
+          "Call_LTP": [
+              520,
+              470,
+              420,
+              370,
+              320,
+              270,
+              220,
+              170,
+              125.50,
+              85.20,
+              45.10,
+              18.50,
+              6.20,
+              2.10,
+              0.90,
+              0.40,
+              0.20,
+              0.10,
+              0.05,
+              0.05,
+              0.05,
+          ],
+          "Put_LTP": [
+              0.05,
+              0.05,
+              0.10,
+              0.20,
+              0.40,
+              0.90,
+              2.10,
+              5.50,
+              15.20,
+              38.40,
+              78.50,
+              125.00,
+              175.00,
+              225.00,
+              275.00,
+              325.00,
+              375.00,
+              425.00,
+              475.00,
+              525.00,
+              575.00,
+          ],
+      }
 
-    raw_chain_data = {
-        "Strike": [
-            75200,
-            75300,
-            75400,
-            75500,
-            75600,
-            75700,
-            75800,
-            75900,
-            76000,
-            76100,
-            76200,
-            76300,
-            76400,
-            76500,
-            76600,
-            76700,
-            76800,
-            76900,
-            77000,
-            77100,
-            77200,
-        ],
-        "Call_LTP": [
-            1070,
-            970,
-            870,
-            770,
-            670,
-            570,
-            470,
-            371.85,
-            271.70,
-            177.45,
-            89.10,
-            30.25,
-            8.45,
-            2.95,
-            1.70,
-            0.90,
-            0.50,
-            0.30,
-            0.20,
-            0.10,
-            0.05,
-        ],
-        "Put_LTP": [
-            0.05,
-            0.10,
-            0.20,
-            0.30,
-            0.50,
-            0.90,
-            1.20,
-            1.80,
-            2.75,
-            6.00,
-            19.90,
-            62.65,
-            140.80,
-            234.90,
-            333.75,
-            430.00,
-            530.00,
-            630.00,
-            730.00,
-            830.00,
-            930.00,
-        ],
-    }
     df_chain = pd.DataFrame(raw_chain_data)
 
     (
@@ -183,6 +259,7 @@ if client_id and access_token:
         breakdown_df,
     ) = compute_tv_imbalance(spot_price, df_chain, symbol)
 
+    st.subheader(f"📊 Active Index: {symbol}")
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("Spot Price", f"{spot_price:.2f}", f"ATM: {atm}")
     col2.metric("Total Call TV", f"{call_tv_sum:.2f} pts")
@@ -197,20 +274,19 @@ if client_id and access_token:
 
     st.divider()
 
-    # Check high imbalance and log it automatically
     if multiplier >= 2.0:
       st.error(
-          f"🚨 **HIGH IMBALANCE!** {dominant} Side TV is **{multiplier:.2f}x"
-          f" HIGHER** ({diff:.2f} pts diff)."
+          f"🚨 **HIGH IMBALANCE ({symbol})!** {dominant} Side TV is"
+          f" **{multiplier:.2f}x HIGHER** ({diff:.2f} pts diff)."
       )
 
-      # Automatic Logging Logic (Avoids duplicate logging in the same minute)
       current_time_str = datetime.datetime.now().strftime("%H:%M:%S")
       should_log = True
       if st.session_state.spike_logs:
         last_entry = st.session_state.spike_logs[-1]
         if (
             last_entry["Time"][:5] == current_time_str[:5]
+            and last_entry["Index"] == symbol
             and last_entry["Side"] == dominant
         ):
           should_log = False
@@ -226,17 +302,19 @@ if client_id and access_token:
 
     elif multiplier >= 1.5:
       st.warning(
-          f"⚠️ **MODERATE IMBALANCE:** {dominant} Side TV is"
+          f"⚠️ **MODERATE IMBALANCE ({symbol}):** {dominant} Side TV is"
           f" **{multiplier:.2f}x**."
       )
     else:
-      st.info(f"⚖️ **NEUTRAL MARKET:** Multiplier is **{multiplier:.2f}x**.")
+      st.info(
+          f"⚖️ **NEUTRAL MARKET ({symbol}):** Multiplier is **{multiplier:.2f}x**."
+      )
 
-    with st.expander("📊 View Strike Breakdown"):
+    with st.expander(f"📊 View {symbol} Strike Breakdown"):
       st.dataframe(breakdown_df, use_container_width=True)
 
     st.divider()
-    st.subheader("📝 Today's Imbalance Spike History (>= 2.0x)")
+    st.subheader("📝 Imbalance Spike History (All Indices)")
     if st.session_state.spike_logs:
       log_df = pd.DataFrame(st.session_state.spike_logs)
       st.dataframe(log_df, use_container_width=True)
@@ -245,8 +323,8 @@ if client_id and access_token:
         st.rerun()
     else:
       st.info(
-          "No 2x+ imbalance spikes recorded yet during this session. App is"
-          " actively watching!"
+          "No 2x+ imbalance spikes recorded yet for SENSEX or NIFTY during"
+          " this session."
       )
 
   except Exception as err:
