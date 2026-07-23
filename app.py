@@ -3,7 +3,6 @@ import pandas as pd
 import streamlit as st
 from dhanhq import dhanhq
 
-# Page Configuration for Mobile / Desktop
 st.set_page_config(
     page_title="3 PM TV Imbalance Tracker",
     page_icon="⚡",
@@ -11,9 +10,8 @@ st.set_page_config(
 )
 
 st.title("⚡ 3 PM Option Time Value (TV) Tracker")
-st.caption("ATM ± 10 Strikes | Real-time Extrinsic Value (Bloat) Comparison")
+st.caption("ATM ± 10 Strikes | Real-time Extrinsic Value Comparison")
 
-# Sidebar Inputs for Dhan API Credentials
 st.sidebar.header("🔑 Dhan API Credentials")
 client_id = st.sidebar.text_input("Dhan Client ID", type="password")
 access_token = st.sidebar.text_input("Dhan Access Token", type="password")
@@ -21,7 +19,6 @@ symbol = st.sidebar.selectbox("Select Index", ["SENSEX", "NIFTY"])
 refresh_sec = st.sidebar.slider("Auto-Refresh Interval (Sec)", 1, 5, 2)
 
 
-# Calculation Function for ATM ± 10 Strikes Time Value
 def compute_tv_imbalance(spot_price, option_chain_df, index_name):
     step = 100 if index_name == "SENSEX" else 50
     atm_strike = round(spot_price / step) * step
@@ -84,16 +81,14 @@ def compute_tv_imbalance(spot_price, option_chain_df, index_name):
     )
 
 
-# App Execution Logic
 if client_id and access_token:
     try:
-        # Fixed DhanHQ Connection Syntax
+        # Safe initialization for dhanhq
         try:
             dhan = dhanhq(client_id=client_id, access_token=access_token)
-        except Exception:
+        except TypeError:
             dhan = dhanhq(client_id, access_token)
 
-        # Demo Feed (SDK response will replace this automatically)
         spot_price = 76269.56
 
         raw_chain_data = {
