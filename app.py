@@ -20,7 +20,7 @@ if "spike_logs" not in st.session_state:
   st.session_state.spike_logs = []
 
 st.sidebar.header("🔑 Dhan API Credentials")
-# यहाँ Client ID और Access Token दोनों लिए जा रहे हैं जैसा कि पहले काम कर रहा था
+# आपकी सुविधा के लिए दोनों इनपुट बॉक्स रखे गए हैं
 client_id = st.sidebar.text_input("Dhan Client ID", type="password")
 access_token = st.sidebar.text_input("Dhan Access Token", type="password")
 symbol = st.sidebar.selectbox("Select Index", ["NIFTY", "SENSEX"])
@@ -32,10 +32,21 @@ INDEX_CONFIG = {
 }
 
 
+def get_dhan_instance(client_id, access_token):
+  """यह फंक्शन लाइब्रेरी के वर्जन के हिसाब से कनेक्शन अपने आप सेट कर लेगा"""
+  token_to_use = access_token if access_token else client_id
+  try:
+    return dhanhq(token_to_use)
+  except Exception:
+    try:
+      return dhanhq(client_id, access_token)
+    except Exception:
+      return dhanhq(client_id=client_id, access_token=access_token)
+
+
 def fetch_live_option_chain_data(client_id, access_token, index_name):
   try:
-    # आधिकारिक नियम के मुताबिक client_id और access_token दोनों पास किए जा रहे हैं
-    dhan = dhanhq(client_id, access_token)
+    dhan = get_dhan_instance(client_id, access_token)
     config = INDEX_CONFIG[index_name]
 
     exp_response = dhan.expiry_list(
@@ -139,7 +150,7 @@ def compute_tv_imbalance_live(spot_price, oc_data, index_name):
   )
 
 
-if client_id and access_token:
+if access_token or client_id:
   spot_price, oc_data, err_msg = fetch_live_option_chain_data(
       client_id, access_token, symbol
   )
@@ -231,7 +242,7 @@ if client_id and access_token:
           " मॉनिटर कर रही है।"
       )
 else:
-  st.info("👈 कृपया साइडबार में अपने सही Dhan Client ID और Access Token दर्ज करें।")
+  st.info("👈 कृपया साइडबार में अपने क्रेडेंशियल्स दर्ज करें।")
 
 time.sleep(refresh_sec)
 st.rerun()
