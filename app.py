@@ -20,6 +20,7 @@ if "spike_logs" not in st.session_state:
   st.session_state.spike_logs = []
 
 st.sidebar.header("🔑 Dhan API Credentials")
+client_id = st.sidebar.text_input("Dhan Client ID", type="password")
 access_token = st.sidebar.text_input("Dhan Access Token", type="password")
 symbol = st.sidebar.selectbox("Select Index", ["NIFTY", "SENSEX"])
 refresh_sec = st.sidebar.slider("Auto-Refresh Interval (Sec)", 1, 5, 2)
@@ -30,9 +31,10 @@ INDEX_CONFIG = {
 }
 
 
-def fetch_live_option_chain_data(access_token, index_name):
+def fetch_live_option_chain_data(client_id, access_token, index_name):
   try:
-    dhan = dhanhq(access_token)
+    # Keyword arguments ke sath initialize karein taaki internal HTTP object theek se bane
+    dhan = dhanhq(client_id=client_id, access_token=access_token)
     config = INDEX_CONFIG[index_name]
 
     exp_response = dhan.expiry_list(
@@ -136,16 +138,15 @@ def compute_tv_imbalance_live(spot_price, oc_data, index_name):
   )
 
 
-if access_token:
+if client_id and access_token:
   spot_price, oc_data, err_msg = fetch_live_option_chain_data(
-      access_token, symbol
+      client_id, access_token, symbol
   )
 
   if err_msg:
     st.warning(
-        f"⚠️ लाइव डेटा प्राप्त नहीं हुआ ({err_msg})। यदि मार्केट बंद है या"
-        " क्रेडेंशियल्स अमान्य हैं, तो कृपया लाइव मार्केट के दौरान पुनः"
-        " प्रयास करें।"
+        f"⚠️ लाइव डेटा प्राप्त नहीं हुआ ({err_msg})। कृपया सुनिश्चित करें कि"
+        " मार्केट चालू है और क्रेडेंशियल्स सही हैं।"
     )
   elif spot_price and oc_data:
     (
@@ -229,7 +230,9 @@ if access_token:
           " मॉनिटर कर रही है।"
       )
 else:
-  st.info("👈 कृपया साइडबार में अपना असली Dhan Access Token दर्ज करें।")
+  st.info(
+      "👈 कृपया साइडबार में अपने असली Dhan Client ID और Access Token दर्ज करें।"
+  )
 
 time.sleep(refresh_sec)
 st.rerun()
