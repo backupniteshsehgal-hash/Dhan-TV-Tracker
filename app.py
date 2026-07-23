@@ -16,30 +16,25 @@ st.caption(
     " Comparison & Auto-Logging"
 )
 
-# Initialize session state for logging spikes
 if "spike_logs" not in st.session_state:
   st.session_state.spike_logs = []
 
 st.sidebar.header("🔑 Dhan API Credentials")
-client_id = st.sidebar.text_input("Dhan Client ID", type="password")
 access_token = st.sidebar.text_input("Dhan Access Token", type="password")
 symbol = st.sidebar.selectbox("Select Index", ["NIFTY", "SENSEX"])
 refresh_sec = st.sidebar.slider("Auto-Refresh Interval (Sec)", 1, 5, 2)
 
-# Index configuration mapping (Security ID & Segment)
 INDEX_CONFIG = {
     "NIFTY": {"security_id": 13, "segment": "IDX_I", "step": 50},
     "SENSEX": {"security_id": 51, "segment": "IDX_I", "step": 100},
 }
 
 
-def fetch_live_option_chain_data(client_id, access_token, index_name):
-  """Dhan API से लाइव ऑप्शन चेन और स्पॉट प्राइस फेच करना"""
+def fetch_live_option_chain_data(access_token, index_name):
   try:
-    dhan = dhanhq(client_id, access_token)
+    dhan = dhanhq(access_token)
     config = INDEX_CONFIG[index_name]
 
-    # 1. Get Expiry List
     exp_response = dhan.expiry_list(
         under_security_id=config["security_id"],
         under_exchange_segment=config["segment"],
@@ -49,7 +44,6 @@ def fetch_live_option_chain_data(client_id, access_token, index_name):
 
     current_expiry = exp_response["data"][0]
 
-    # 2. Get Option Chain
     chain_response = dhan.get_option_chain(
         underlying_security_id=config["security_id"],
         underlying_type="INDEX",
@@ -87,7 +81,6 @@ def compute_tv_imbalance_live(spot_price, oc_data, index_name):
   put_tv_sum = 0.0
   rows = []
 
-  # सॉर्टेड स्ट्राइक्स निकालना
   strikes = sorted([float(s) for s in oc_data.keys()])
 
   for strike in strikes:
@@ -102,11 +95,9 @@ def compute_tv_imbalance_live(spot_price, oc_data, index_name):
       c_ltp = float(ce_data.get("last_price", 0.0))
       p_ltp = float(pe_data.get("last_price", 0.0))
 
-      # Intrinsic Value calculation
       c_iv = max(0.0, spot_price - strike)
       p_iv = max(0.0, strike - spot_price)
 
-      # Time Value (TV) calculation
       c_tv = max(0.0, c_ltp - c_iv)
       p_tv = max(0.0, p_ltp - p_iv)
 
@@ -145,16 +136,16 @@ def compute_tv_imbalance_live(spot_price, oc_data, index_name):
   )
 
 
-if client_id and access_token:
-  # लाइव डेटा फेच करें
+if access_token:
   spot_price, oc_data, err_msg = fetch_live_option_chain_data(
-      client_id, access_token, symbol
+      access_token, symbol
   )
 
   if err_msg:
-    st.error(
-        f"⚠️ लाइव डेटा प्राप्त करने में त्रुटि: {err_msg} (कृपया सुनिश्चित करें"
-        " कि मार्केट चालू है या क्रेडेंशियल्स सही हैं)"
+    st.warning(
+        f"⚠️ लाइव डेटा प्राप्त नहीं हुआ ({err_msg})। यदि मार्केट बंद है या"
+        " क्रेडेंशियल्स अमान्य हैं, तो कृपया लाइव मार्केट के दौरान पुनः"
+        " प्रयास करें।"
     )
   elif spot_price and oc_data:
     (
@@ -182,7 +173,6 @@ if client_id and access_token:
 
     st.divider()
 
-    # Real-time Spike Detection & Logging
     if multiplier >= 2.0:
       st.error(
           f"🚨 **LIVE HIGH IMBALANCE ({symbol})!** {dominant} Side TV is"
@@ -193,7 +183,6 @@ if client_id and access_token:
       should_log = True
       if st.session_state.spike_logs:
         last_entry = st.session_state.spike_logs[-1]
-        # एक ही मिनट और इंडेक्स का बार-बार डुप्लीकेट लॉग न बने
         if (
             last_entry["Time"][:5] == current_time_str[:5]
             and last_entry["Index"] == symbol
@@ -240,9 +229,7 @@ if client_id and access_token:
           " मॉनिटर कर रही है।"
       )
 else:
-  st.info(
-      "👈 कृपया साइडबार में अपने असली Dhan Client ID और Access Token दर्ज करें।"
-  )
+  st.info("👈 कृपया साइडबार में अपना असली Dhan Access Token दर्ज करें।")
 
 time.sleep(refresh_sec)
 st.rerun()
