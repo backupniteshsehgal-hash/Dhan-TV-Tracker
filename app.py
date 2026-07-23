@@ -1,3 +1,4 @@
+import datetime
 import time
 import pandas as pd
 import requests
@@ -9,8 +10,12 @@ st.set_page_config(
 
 st.title("⚡ 3 PM Option Time Value (TV) Tracker")
 st.caption(
-    "ATM ± 10 Strikes | Real-time Extrinsic Value Comparison via Dhan API"
+    "ATM ± 10 Strikes | Real-time Extrinsic Value Comparison with Auto-Logging"
 )
+
+# Initialize session state for logging spikes
+if "spike_logs" not in st.session_state:
+  st.session_state.spike_logs = []
 
 st.sidebar.header("🔑 Dhan API Credentials")
 client_id = st.sidebar.text_input("Dhan Client ID", type="password")
@@ -83,15 +88,12 @@ def compute_tv_imbalance(spot_price, option_chain_df, index_name):
 
 if client_id and access_token:
   try:
-    # Direct API verification using requests (No broken SDK wrapper issues!)
     headers = {
         "access-token": access_token,
         "client-id": client_id,
         "Content-Type": "application/json",
         "Accept": "application/json",
     }
-
-    # Verify credentials with Dhan Fund/Profile API
     res = requests.get(
         "https://api.dhan.co/v2/fund", headers=headers, timeout=5
     )
@@ -195,11 +197,33 @@ if client_id and access_token:
 
     st.divider()
 
+    # Check high imbalance and log it automatically
     if multiplier >= 2.0:
       st.error(
           f"🚨 **HIGH IMBALANCE!** {dominant} Side TV is **{multiplier:.2f}x"
           f" HIGHER** ({diff:.2f} pts diff)."
       )
+
+      # Automatic Logging Logic (Avoids duplicate logging in the same minute)
+      current_time_str = datetime.datetime.now().strftime("%H:%M:%S")
+      should_log = True
+      if st.session_state.spike_logs:
+        last_entry = st.session_state.spike_logs[-1]
+        if (
+            last_entry["Time"][:5] == current_time_str[:5]
+            and last_entry["Side"] == dominant
+        ):
+          should_log = False
+
+      if should_log:
+        st.session_state.spike_logs.append({
+            "Time": current_time_str,
+            "Index": symbol,
+            "Side": dominant,
+            "Multiplier": round(multiplier, 2),
+            "Diff (Pts)": round(diff, 2),
+        })
+
     elif multiplier >= 1.5:
       st.warning(
           f"⚠️ **MODERATE IMBALANCE:** {dominant} Side TV is"
@@ -210,6 +234,20 @@ if client_id and access_token:
 
     with st.expander("📊 View Strike Breakdown"):
       st.dataframe(breakdown_df, use_container_width=True)
+
+    st.divider()
+    st.subheader("📝 Today's Imbalance Spike History (>= 2.0x)")
+    if st.session_state.spike_logs:
+      log_df = pd.DataFrame(st.session_state.spike_logs)
+      st.dataframe(log_df, use_container_width=True)
+      if st.button("Clear History Log"):
+        st.session_state.spike_logs = []
+        st.rerun()
+    else:
+      st.info(
+          "No 2x+ imbalance spikes recorded yet during this session. App is"
+          " actively watching!"
+      )
 
   except Exception as err:
     st.error(f"Connection Error: {err}")
