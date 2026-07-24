@@ -7,10 +7,10 @@ st.set_page_config(
     page_title="3 PM TV Imbalance Tracker", page_icon="⚡", layout="wide"
 )
 
-st.title("⚡ 3 PM Option Time Value (TV) Tracker")
-st.caption("ATM ± 10 Strikes | Real-time Extrinsic Value Comparison with WhatsApp Alerts")
+st.title("⚡ 3 PM Option Time Value (TV) Tracker - Live Market")
+st.caption("ATM ± 10 Strikes | Real-time Extrinsic Value Comparison from Dhan API")
 
-# 🔑 आपके असली क्रेडेंशियल्स यहाँ पक्के तौर पर सेट हैं
+# 🔑 आपके असली क्रेडेंशियल्स यहाँ फिक्स हैं
 CLIENT_ID = "1104978491"
 ACCESS_TOKEN = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJpc3MiOiJkaGFuIiwicGFydG5lcklkIjoiIiwiZXhwIjoxNzg0OTUwMDg1LCJpYXQiOjE3ODQ4NjM2ODUsInRva2VuQ29uc3VtZXJUeXBlIjoiU0VMRiIsIndlYmhvb2tVcmwiOiIiLCJkaGFuQ2xpZW50SWQiOiIxMTA0OTc4NDkxIn0.Vox2yz26LF5BdVQBfPV8P36RVV3KsPyzcn-NPOghGTwKG025z1Qa3HGJWYuu3QZ8uJ63pAEn4HcZ41CC-sLP5A"
 
@@ -33,6 +33,33 @@ def send_whatsapp_alert(phone, apikey, message):
         requests.get(url, timeout=5)
     except Exception as e:
         print(f"WhatsApp Error: {e}")
+
+
+# 🔄 धन API से लाइव ऑप्शन चेन और स्पॉट प्राइस फेच करने का फंक्शन
+def fetch_live_dhan_option_chain(client_id, access_token, index_name):
+    headers = {
+        "access-token": access_token,
+        "client-id": client_id,
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+    }
+    
+    # Dhan API v2 Option Chain Endpoint
+    url = "https://api.dhan.co/v2/optionchain"
+    
+    # SENSEX = 51, NIFTY = 13 (Underlying Scrip ID)
+    scrip_id = 51 if index_name == "SENSEX" else 13
+    
+    payload = {
+        "UnderlyingScrip": scrip_id,
+        "UnderlyingSegment": "IDX_I"
+    }
+    
+    response = requests.post(url, json=payload, headers=headers, timeout=10)
+    if response.status_code == 200:
+        return response.json()
+    else:
+        raise Exception(f"API Error {response.status_code}: {response.text}")
 
 
 def compute_tv_imbalance(spot_price, option_chain_df, index_name):
@@ -98,60 +125,71 @@ def compute_tv_imbalance(spot_price, option_chain_df, index_name):
 
 
 try:
-    headers = {
-        "access-token": ACCESS_TOKEN,
-        "client-id": CLIENT_ID,
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-    }
+    with st.spinner("🔄 धन सर्वर से लाइव डेटा फेच हो रहा है..."):
+        live_data = fetch_live_dhan_option_chain(CLIENT_ID, ACCESS_TOKEN, symbol)
     
-    spot_price = 75616.01 
-
-    raw_chain_data = {
-        "Strike": [73600, 73700, 73800, 73900, 74000, 74100, 74200, 74300, 74400, 74500, 74600, 74700, 74800, 74900, 75000, 75100, 75200, 75300, 75400, 75500, 75600, 75700, 75800, 75900, 76000, 76100, 76200, 76300, 76400, 76500, 76600],
-        "Call_LTP": [2100, 2000, 1900, 1800, 1700, 1600, 1500, 1400, 1300, 1200, 1100, 1000, 900, 800, 700, 600, 500, 400, 300, 200, 150, 100, 60, 30, 15, 8, 4, 2, 1, 0.5, 0.2],
-        "Put_LTP": [0.2, 0.5, 1, 2, 4, 8, 15, 30, 60, 100, 150, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1100, 1200, 1300, 1400, 1500, 1600, 1700, 1800, 1900, 2000, 2100],
-    }
-    df_chain = pd.DataFrame(raw_chain_data)
-
-    (
-        atm,
-        call_tv_sum,
-        put_tv_sum,
-        diff,
-        dominant,
-        multiplier,
-        breakdown_df,
-    ) = compute_tv_imbalance(spot_price, df_chain, symbol)
-
-    col1, col2, col3, col4 = st.columns(4)
-    col1.metric("Spot Price", f"{spot_price:.2f}", f"ATM: {atm}")
-    col2.metric("Total Call TV", f"{call_tv_sum:.2f} pts")
-    col3.metric("Total Put TV", f"{put_tv_sum:.2f} pts")
-
-    status_tag = "🔴 PUT" if dominant == "PUT" else "🟢 CALL"
-    col4.metric(
-        "Dominant Side",
-        f"{status_tag} Bloat",
-        f"{multiplier:.2f}x Times Higher",
-    )
-
-    st.divider()
-
-    if multiplier >= 2.0:
-        st.error(f"🚨 **HIGH IMBALANCE!** {dominant} Side TV is **{multiplier:.2f}x HIGHER**.")
-        if enable_wa:
-            send_whatsapp_alert(wa_phone, wa_apikey, f"🚨 ALERT: {symbol} 3PM Imbalance! {dominant} Side TV is {multiplier:.2f}x higher.")
-    elif multiplier >= 1.5:
-        st.warning(f"⚠️ **MODERATE IMBALANCE:** {dominant} Side TV is **{multiplier:.2f}x**.")
+    # लाइव रिस्पॉन्स से स्पॉट प्राइस और ऑप्शन चेन डेटा निकालना
+    data_block = live_data.get("data", {})
+    spot_price = float(data_block.get("last_price", data_block.get("spotPrice", 75499.64)))
+    
+    oc_dict = data_block.get("oc", {})
+    
+    strikes = []
+    calls = []
+    puts = []
+    
+    for strike_val, details in oc_dict.items():
+        strikes.append(float(strike_val))
+        calls.append(float(details.get("ce", {}).get("last_price", 0.0)))
+        puts.append(float(details.get("pe", {}).get("last_price", 0.0)))
+        
+    if not strikes:
+        st.warning("⚠️ लाइव ऑप्शन चेन डेटा खाली मिला। कृपया सुनिश्चित करें कि बाजार खुला है।")
     else:
-        st.info(f"⚖️ **NEUTRAL MARKET:** Multiplier is **{multiplier:.2f}x**.")
+        df_chain = pd.DataFrame({
+            "Strike": strikes,
+            "Call_LTP": calls,
+            "Put_LTP": puts
+        })
 
-    with st.expander("📊 View Strike Breakdown"):
-        st.dataframe(breakdown_df, use_container_width=True)
+        (
+            atm,
+            call_tv_sum,
+            put_tv_sum,
+            diff,
+            dominant,
+            multiplier,
+            breakdown_df,
+        ) = compute_tv_imbalance(spot_price, df_chain, symbol)
+
+        col1, col2, col3, col4 = st.columns(4)
+        col1.metric("Live Spot Price", f"{spot_price:.2f}", f"ATM: {atm}")
+        col2.metric("Total Call TV", f"{call_tv_sum:.2f} pts")
+        col3.metric("Total Put TV", f"{put_tv_sum:.2f} pts")
+
+        status_tag = "🔴 PUT" if dominant == "PUT" else "🟢 CALL"
+        col4.metric(
+            "Dominant Side",
+            f"{status_tag} Bloat",
+            f"{multiplier:.2f}x Times Higher",
+        )
+
+        st.divider()
+
+        if multiplier >= 2.0:
+            st.error(f"🚨 **HIGH IMBALANCE!** {dominant} Side TV is **{multiplier:.2f}x HIGHER**.")
+            if enable_wa:
+                send_whatsapp_alert(wa_phone, wa_apikey, f"🚨 ALERT: {symbol} 3PM Imbalance! {dominant} Side TV is {multiplier:.2f}x higher.")
+        elif multiplier >= 1.5:
+            st.warning(f"⚠️ **MODERATE IMBALANCE:** {dominant} Side TV is **{multiplier:.2f}x**.")
+        else:
+            st.info(f"⚖️ **NEUTRAL MARKET:** Multiplier is **{multiplier:.2f}x**.")
+
+        with st.expander("📊 View Strike Breakdown"):
+            st.dataframe(breakdown_df, use_container_width=True)
 
 except Exception as err:
-    st.error(f"Connection Error: {err}")
+    st.error(f"❌ लाइव डेटा फेच करने में एरर: {err}")
 
 time.sleep(refresh_sec)
 st.rerun()
