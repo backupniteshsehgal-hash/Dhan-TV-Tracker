@@ -11,8 +11,8 @@ st.title("⚡ 3 PM Option Time Value (TV) Tracker")
 st.caption("ATM ± 10 Strikes | Real-time Extrinsic Value Comparison with WhatsApp Alerts")
 
 # 🛑 यहाँ अपनी सही Client ID और नया Access Token सीधे स्थायी रूप से दर्ज करें (कभी नहीं उड़ेगा)
-CLIENT_ID = "अपनी_क्लाइंट_आईडी_यहाँ_डालें"
-ACCESS_TOKEN = "धन_पोर्टल_से_निकाला_गया_नया_टोकन_यहाँ_डालें"
+CLIENT_ID = "1104978491"
+ACCESS_TOKEN = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJpc3MiOiJkaGFuIiwicGFydG5lcklkIjoiIiwiZXhwIjoxNzg0OTUwMDg1LCJpYXQiOjE3ODQ4NjM2ODUsInRva2VuQ29uc3VtZXJUeXBlIjoiU0VMRiIsIndlYmhvb2tVcmwiOiIiLCJkaGFuQ2xpZW50SWQiOiIxMTA0OTc4NDkxIn0.Vox2yz26LF5BdVQBfPV8P36RVV3KsPyzcn-NPOghGTwKG025z1Qa3HGJWYuu3QZ8uJ63pAEn4HcZ41CC-sLP5A"
 
 st.sidebar.header("⚙️ Settings")
 symbol = st.sidebar.selectbox("Select Index", ["SENSEX", "NIFTY"])
