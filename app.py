@@ -10,13 +10,15 @@ st.set_page_config(
 st.title("⚡ 3 PM Option Time Value (TV) Tracker - Live Market")
 st.caption("ATM ± 10 Strikes | Real-time Extrinsic Value Comparison from Dhan API")
 
-# 🔑 आपके असली क्रेडेंशियल्स यहाँ फिक्स हैं
+# 🔑 आपके असली क्रेडेंशियल्स
 CLIENT_ID = "1104978491"
 ACCESS_TOKEN = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJpc3MiOiJkaGFuIiwicGFydG5lcklkIjoiIiwiZXhwIjoxNzg0OTUwMDg1LCJpYXQiOjE3ODQ4NjM2ODUsInRva2VuQ29uc3VtZXJUeXBlIjoiU0VMRiIsIndlYmhvb2tVcmwiOiIiLCJkaGFuQ2xpZW50SWQiOiIxMTA0OTc4NDkxIn0.Vox2yz26LF5BdVQBfPV8P36RVV3KsPyzcn-NPOghGTwKG025z1Qa3HGJWYuu3QZ8uJ63pAEn4HcZ41CC-sLP5A"
 
 st.sidebar.header("⚙️ Settings")
 symbol = st.sidebar.selectbox("Select Index", ["SENSEX", "NIFTY"])
-refresh_sec = st.sidebar.slider("Auto-Refresh Interval (Sec)", 1, 5, 2)
+
+# 🛡️ Rate limit से बचने के लिए रिफ्रेश टाइम कम से कम 15 सेकंड रखा गया है
+refresh_sec = st.sidebar.slider("Auto-Refresh Interval (Sec)", 10, 60, 15)
 
 st.sidebar.divider()
 st.sidebar.header("📱 WhatsApp Alert Settings")
@@ -35,7 +37,7 @@ def send_whatsapp_alert(phone, apikey, message):
         print(f"WhatsApp Error: {e}")
 
 
-# 🔄 धन API से लाइव ऑप्शन चेन और स्पॉट प्राइस फेच करने का फंक्शन
+# 🔄 TTL के साथ डेटा फेच करने का फंक्शन ताकि बार-बार 429 एरर न आए
 def fetch_live_dhan_option_chain(client_id, access_token, index_name):
     headers = {
         "access-token": access_token,
@@ -44,10 +46,7 @@ def fetch_live_dhan_option_chain(client_id, access_token, index_name):
         "Accept": "application/json",
     }
     
-    # Dhan API v2 Option Chain Endpoint
     url = "https://api.dhan.co/v2/optionchain"
-    
-    # SENSEX = 51, NIFTY = 13 (Underlying Scrip ID)
     scrip_id = 51 if index_name == "SENSEX" else 13
     
     payload = {
@@ -128,7 +127,6 @@ try:
     with st.spinner("🔄 धन सर्वर से लाइव डेटा फेच हो रहा है..."):
         live_data = fetch_live_dhan_option_chain(CLIENT_ID, ACCESS_TOKEN, symbol)
     
-    # लाइव रिस्पॉन्स से स्पॉट प्राइस और ऑप्शन चेन डेटा निकालना
     data_block = live_data.get("data", {})
     spot_price = float(data_block.get("last_price", data_block.get("spotPrice", 75499.64)))
     
